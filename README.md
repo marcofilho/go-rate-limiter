@@ -43,7 +43,7 @@ go-rate-limiter/
 
 ## Prerequisites
 
-- [Go](https://golang.org/) (version 1.20 or higher)
+- [Go](https://golang.org/) (version 1.24 or higher)
 - [Docker](https://www.docker.com/)
 - [Docker Compose](https://docs.docker.com/compose/)
 

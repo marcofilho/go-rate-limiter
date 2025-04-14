@@ -3,49 +3,41 @@ package limiter
 import (
 	"context"
 	"time"
-
-	"github.com/go-redis/redis/v8"
 )
 
 type RateLimiter struct {
-	Client        *redis.Client
-	MaxRequests   int
-	BlockDuration time.Duration
-	LimiterType   string
+	Storage           Storage
+	MaxRequests       int
+	BlockDuration     time.Duration
+	TokenRequestLimit int
 }
 
-func NewRateLimiter(redisAddr, redisPassword string, redisDB int, maxRequests int, blockDuration time.Duration, limiterType string) *RateLimiter {
-	client := redis.NewClient(&redis.Options{
-		Addr:     redisAddr,
-		Password: redisPassword,
-		DB:       redisDB,
-	})
-
+func NewRateLimiter(storage Storage, maxRequests int, blockDuration time.Duration, tokenRequestLimit int) *RateLimiter {
 	return &RateLimiter{
-		Client:        client,
-		MaxRequests:   maxRequests,
-		BlockDuration: blockDuration,
-		LimiterType:   limiterType,
+		Storage:           storage,
+		MaxRequests:       maxRequests,
+		BlockDuration:     blockDuration,
+		TokenRequestLimit: tokenRequestLimit,
 	}
 }
 
-func (r *RateLimiter) Allow(key string, isToken bool) (bool, error) {
+func (r *RateLimiter) Allow(key string, isToken bool, tokenRequestLimit int) (bool, error) {
 	ctx := context.Background()
 
 	var maxRequests int
 	if isToken {
-		maxRequests = r.MaxRequestsForToken(key)
+		maxRequests = r.maxRequestsForToken(key, tokenRequestLimit)
 	} else {
 		maxRequests = r.MaxRequests
 	}
 
-	count, err := r.Client.Incr(ctx, key).Result()
+	count, err := r.Storage.Incr(ctx, key)
 	if err != nil {
 		return false, err
 	}
 
 	if count == 1 {
-		err = r.Client.Expire(ctx, key, time.Second).Err()
+		err = r.Storage.Expire(ctx, key, time.Second)
 		if err != nil {
 			return false, err
 		}
@@ -58,9 +50,14 @@ func (r *RateLimiter) Allow(key string, isToken bool) (bool, error) {
 	return true, nil
 }
 
-func (r *RateLimiter) MaxRequestsForToken(token string) int {
-	if token == "special-token" {
-		return 100
+func (r *RateLimiter) maxRequestsForToken(token string, tokenRequestLimit int) int {
+	tokenLimits := map[string]int{
+		"API-TOKEN": tokenRequestLimit,
 	}
+
+	if limit, exists := tokenLimits[token]; exists {
+		return limit
+	}
+
 	return r.MaxRequests
 }

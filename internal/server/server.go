@@ -25,7 +25,7 @@ func StartHTTPServer(port string, rateLimiter *limiter.RateLimiter) error {
 			isToken = false
 		}
 
-		allowed, err := rateLimiter.Allow(key, isToken)
+		allowed, err := rateLimiter.Allow(key, isToken, rateLimiter.TokenRequestLimit)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 			return
@@ -41,16 +41,11 @@ func StartHTTPServer(port string, rateLimiter *limiter.RateLimiter) error {
 		c.Next()
 	})
 
-	// Apply the authentication middleware to protected routes
 	protected := router.Group("/")
 	protected.Use(middleware.AuthMiddleware())
-	protected.GET("/secure-ping", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "secure pong"})
-	})
 
-	// Public route
 	router.GET("/ping", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "pong"})
+		c.JSON(http.StatusOK, gin.H{"message": "Request ACCEPTED"})
 	})
 
 	address := fmt.Sprintf(":%s", port)

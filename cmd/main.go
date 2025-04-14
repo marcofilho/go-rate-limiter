@@ -15,13 +15,12 @@ func main() {
 		log.Fatalf("Error loading configuration: %v", err)
 	}
 
+	storage := limiter.NewRedisStorage(cfg.RedisAddress, cfg.RedisPassword, cfg.RedisDB)
 	rateLimiter := limiter.NewRateLimiter(
-		cfg.RedisAddress,
-		cfg.RedisPassword,
-		cfg.RedisDB,
+		storage,
 		cfg.RateLimiterMaxRequests,
 		time.Duration(cfg.RateLimiterBlockDuration)*time.Second,
-		cfg.RateLimiterType,
+		cfg.TokenRequestLimit,
 	)
 
 	port := cfg.WebServerPort

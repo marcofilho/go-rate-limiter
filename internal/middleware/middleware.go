@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -8,16 +9,14 @@ import (
 
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Implement your authentication logic here
-		// For example, check for a valid token in the request header
 		token := c.GetHeader("Authorization")
 		if token == "" {
+			log.Println("Unauthorized access attempt")
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 			c.Abort()
 			return
 		}
-
-		// If the token is valid, proceed to the next middleware/handler
+		log.Printf("Authorized request with token: %s\n", token)
 		c.Next()
 	}
 }

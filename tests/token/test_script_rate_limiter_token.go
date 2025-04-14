@@ -21,13 +21,22 @@ func main() {
 	}
 
 	url := "http://localhost:8080/ping"
+	apiKey := "my-token"
 	var wg sync.WaitGroup
 
 	for i := 0; i < numRequests; i++ {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			resp, err := http.Get(url)
+			req, err := http.NewRequest("GET", url, nil)
+			if err != nil {
+				fmt.Printf("Request %d: Error creating request: %v\n", i+1, err)
+				return
+			}
+			req.Header.Set("API_KEY", apiKey)
+
+			client := &http.Client{}
+			resp, err := client.Do(req)
 			if err != nil {
 				fmt.Printf("Request %d: Error: %v\n", i+1, err)
 				return

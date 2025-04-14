@@ -10,6 +10,7 @@ type Config struct {
 	RedisPassword            string `mapstructure:"REDIS_PASSWORD"`
 	RedisDB                  int    `mapstructure:"REDIS_DB"`
 	WebServerPort            string `mapstructure:"WEB_SERVER_PORT"`
+	TokenRequestLimit        int    `mapstructure:"TOKEN_REQUEST_LIMIT"`
 }
 
 func LoadConfig(path string) (*Config, error) {

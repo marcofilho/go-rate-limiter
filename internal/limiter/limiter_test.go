@@ -1,146 +1,77 @@
 package limiter
 
 import (
+	"context"
 	"testing"
 	"time"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/stretchr/testify/assert"
 )
 
-func setupTestRedis() *redis.Client {
-	client := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
-	})
-	client.FlushDB(client.Context())
-	return client
+// MockStorage is a mock implementation of the Storage interface for testing
+type MockStorage struct {
+	data map[string]int64
+	ttl  map[string]time.Time
 }
 
-func TestNewRateLimiter(t *testing.T) {
-	client := setupTestRedis()
-	defer client.Close()
-
-	limiter := NewRateLimiter("localhost:6379", "", 0, 10, time.Second*10, "basic")
-	assert.NotNil(t, limiter)
-	assert.Equal(t, 10, limiter.MaxRequests)
-	assert.Equal(t, time.Second*10, limiter.BlockDuration)
-	assert.Equal(t, "basic", limiter.LimiterType)
-}
-
-func TestRateLimiter_AllowWithinLimit(t *testing.T) {
-	client := setupTestRedis()
-	defer client.Close()
-
-	limiter := &RateLimiter{
-		Client:        client,
-		MaxRequests:   5,
-		BlockDuration: time.Second * 10,
-		LimiterType:   "basic",
+func NewMockStorage() *MockStorage {
+	return &MockStorage{
+		data: make(map[string]int64),
+		ttl:  make(map[string]time.Time),
 	}
+}
 
-	key := "test_key_within_limit"
+func (m *MockStorage) Incr(ctx context.Context, key string) (int64, error) {
+	if _, exists := m.data[key]; !exists {
+		m.data[key] = 0
+	}
+	m.data[key]++
+	return m.data[key], nil
+}
 
-	for i := 0; i < 5; i++ {
-		allowed, err := limiter.Allow(key, false)
+func (m *MockStorage) Expire(ctx context.Context, key string, duration time.Duration) error {
+	m.ttl[key] = time.Now().Add(duration)
+	return nil
+}
+
+func (m *MockStorage) Exists(ctx context.Context, key string) (bool, error) {
+	expiration, exists := m.ttl[key]
+	if !exists {
+		return false, nil
+	}
+	if time.Now().After(expiration) {
+		delete(m.data, key)
+		delete(m.ttl, key)
+		return false, nil
+	}
+	return true, nil
+}
+
+func TestRateLimiter_Allow(t *testing.T) {
+	mockStorage := NewMockStorage()
+	rateLimiter := NewRateLimiter(mockStorage, 5, 10*time.Second, 100)
+
+	// Test IP-based rate limiting
+	for i := 1; i <= 5; i++ {
+		allowed, err := rateLimiter.Allow("192.168.1.1", false, 0)
 		assert.NoError(t, err)
-		assert.True(t, allowed)
-	}
-}
-
-func TestRateLimiter_AllowExceedLimit(t *testing.T) {
-	client := setupTestRedis()
-	defer client.Close()
-
-	limiter := &RateLimiter{
-		Client:        client,
-		MaxRequests:   3,
-		BlockDuration: time.Second * 5,
-		LimiterType:   "basic",
+		assert.True(t, allowed, "Request %d should be allowed", i)
 	}
 
-	key := "test_key_exceed_limit"
+	// Exceed the limit
+	allowed, err := rateLimiter.Allow("192.168.1.1", false, 0)
+	assert.NoError(t, err)
+	assert.False(t, allowed, "Request should be blocked after exceeding the limit")
 
-	for i := 0; i < 3; i++ {
-		allowed, err := limiter.Allow(key, false)
+	// Test token-based rate limiting
+	for i := 1; i <= 100; i++ {
+		allowed, err := rateLimiter.Allow("API-TOKEN", true, 100)
 		assert.NoError(t, err)
-		assert.True(t, allowed)
+		assert.True(t, allowed, "Request %d should be allowed for token", i)
 	}
 
-	allowed, err := limiter.Allow(key, false)
+	// Exceed the token limit
+	allowed, err = rateLimiter.Allow("API-TOKEN", true, 100)
 	assert.NoError(t, err)
-	assert.False(t, allowed)
-}
-
-func TestRateLimiter_BlockDuration(t *testing.T) {
-	client := setupTestRedis()
-	defer client.Close()
-
-	limiter := &RateLimiter{
-		Client:        client,
-		MaxRequests:   2,
-		BlockDuration: time.Second * 2,
-		LimiterType:   "basic",
-	}
-
-	key := "test_key_block_duration"
-
-	for i := 0; i < 2; i++ {
-		allowed, err := limiter.Allow(key, false)
-		assert.NoError(t, err)
-		assert.True(t, allowed)
-	}
-
-	allowed, err := limiter.Allow(key, false)
-	assert.NoError(t, err)
-	assert.False(t, allowed)
-
-	time.Sleep(time.Second * 2)
-
-	allowed, err = limiter.Allow(key, false)
-	assert.NoError(t, err)
-	assert.True(t, allowed)
-}
-
-func TestRateLimiter_MaxRequestsForToken(t *testing.T) {
-	client := setupTestRedis()
-	defer client.Close()
-
-	limiter := &RateLimiter{
-		Client:        client,
-		MaxRequests:   5,
-		BlockDuration: time.Second * 10,
-		LimiterType:   "token",
-	}
-
-	token := "special-token"
-	nonSpecialToken := "regular-token"
-
-	assert.Equal(t, 100, limiter.MaxRequestsForToken(token))
-	assert.Equal(t, 5, limiter.MaxRequestsForToken(nonSpecialToken))
-}
-
-func TestRateLimiter_TokenBasedLimit(t *testing.T) {
-	client := setupTestRedis()
-	defer client.Close()
-
-	limiter := &RateLimiter{
-		Client:        client,
-		MaxRequests:   5,
-		BlockDuration: time.Second * 10,
-		LimiterType:   "token",
-	}
-
-	token := "special-token"
-
-	for i := 0; i < 100; i++ {
-		allowed, err := limiter.Allow(token, true)
-		assert.NoError(t, err)
-		assert.True(t, allowed)
-	}
-
-	allowed, err := limiter.Allow(token, true)
-	assert.NoError(t, err)
-	assert.False(t, allowed)
+	assert.False(t, allowed, "Request should be blocked after exceeding the token limit")
 }

@@ -51,31 +51,11 @@ go-rate-limiter/
 
 ## How to Use
 
-### 1. Build and Run with Docker
-
-#### **1.1 Build the Docker Image**
-In the root directory of the project, run:
-
-```bash
-docker build -t go-rate-limiter .
-```
-
-#### **1.2 Run the Container**
-Run the container with:
-
-```bash
-docker run -d --name go-rate-limiter -p 8080:8080 --env-file ./cmd/.env go-rate-limiter
-```
-
-- The server will be available at `http://localhost:8080`.
-
----
-
-### 2. Use Docker Compose
+### 1. Use Docker Compose
 
 If you are using Redis, you can run the server and Redis together with Docker Compose.
 
-#### **2.1 Start the Services**
+#### **2.1 Build and Start the Services**
 Run:
 
 ```bash
@@ -84,7 +64,7 @@ docker-compose up --build
 
 ---
 
-### 3. Test the System
+### 2. Test the System
 
 #### **3.1 `/ping` Endpoint**
 Send requests to the `/ping` endpoint:

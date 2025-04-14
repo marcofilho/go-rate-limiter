@@ -52,7 +52,7 @@ func (r *RateLimiter) Allow(key string, isToken bool, tokenRequestLimit int) (bo
 
 func (r *RateLimiter) maxRequestsForToken(token string, tokenRequestLimit int) int {
 	tokenLimits := map[string]int{
-		"API-TOKEN": tokenRequestLimit,
+		token: tokenRequestLimit,
 	}
 
 	if limit, exists := tokenLimits[token]; exists {

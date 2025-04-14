@@ -15,17 +15,20 @@ func StartHTTPServer(port string, rateLimiter *limiter.RateLimiter) error {
 	router.Use(func(c *gin.Context) {
 		var key string
 		var isToken bool
+		var tokenRequestLimit int
 
 		token := c.GetHeader("API_KEY")
 		if token != "" {
 			key = token
 			isToken = true
+			tokenRequestLimit = rateLimiter.TokenRequestLimit
 		} else {
 			key = c.ClientIP()
 			isToken = false
+			tokenRequestLimit = 10
 		}
 
-		allowed, err := rateLimiter.Allow(key, isToken, rateLimiter.TokenRequestLimit)
+		allowed, err := rateLimiter.Allow(key, isToken, tokenRequestLimit)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 			return

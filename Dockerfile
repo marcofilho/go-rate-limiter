@@ -9,13 +9,13 @@ COPY . .
 
 RUN go build -o go-rate-limiter ./cmd/main.go
 
-FROM debian:stable
+FROM debian:stable-slim
 
 WORKDIR /app
 
 COPY --from=builder /app/go-rate-limiter .
 
-COPY .env .env
+COPY cmd/.env .env
 
 EXPOSE 8080
 

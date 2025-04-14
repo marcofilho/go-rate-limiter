@@ -55,7 +55,7 @@ go-rate-limiter/
 
 If you are using Redis, you can run the server and Redis together with Docker Compose.
 
-#### **2.1 Build and Start the Services**
+#### **1.1 Build and Start the Services**
 Run:
 
 ```bash
@@ -66,21 +66,21 @@ docker-compose up --build
 
 ### 2. Test the System
 
-#### **3.1 `/ping` Endpoint**
+#### **2.1 `/ping` Endpoint**
 Send requests to the `/ping` endpoint:
 
 ```bash
 curl http://localhost:8080/ping
 ```
 
-#### **3.2 Test with Token**
+#### **2.2 Test with Token**
 Send requests with the `API_KEY` header:
 
 ```bash
 curl -X GET http://localhost:8080/ping -H "API_KEY: my-token"
 ```
 
-#### **3.3 Test Rate Limiting**
+#### **2.3 Test Rate Limiting**
 Use the test script to send multiple requests:
 
 ```bash

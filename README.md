@@ -14,6 +14,7 @@ go-rate-limiter/
 ├── internal/
 │   ├── limiter/
 │   │   ├── limiter.go
+|       ├── limiter_test.go
 │   │   ├── storage.go
 │   │   └── redis_storage.go
 │   ├── middleware/
